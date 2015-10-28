@@ -1,14 +1,10 @@
 <?php
 
 function get_theme_default_options() {
-    $date = new DateTime();
-    $interval = new DateInterval('P1M');
-    $date->add($interval);
-    
     return array(
         'pagina_help' => site_url('sobre'),
         'pagina_sugerir' => site_url('sugerir-uma-meta'),
-        'data_encerramento' => $date->format('Y-m-d'),
+        'data_encerramento' => date('Y-m-d', strtotime("+1 month")),
         
         'object_labels' => ObjectPostType::get_default_labels(),
         'taxonomy_labels' => ObjectPostType::get_taxonomy_default_labels(),
@@ -22,10 +18,6 @@ function get_theme_default_options() {
             'description' => 'Utilize essa página para criar um novo objeto.',
             'success' => 'Objeto criado com sucesso!',
             'list' => 'Objetos sugeridos pelos usuários',
-            'core_list' => 'Objetos sugeridos por nossa equipe',
-            'list_user_page' => 'Objetos sugeridos pelo usuário',
-            'form_title' => 'Título',
-            'form_description' => 'Descrição',
         ),
         'enable_taxonomy' => false,
         
@@ -46,16 +38,10 @@ function get_theme_default_options() {
             'label_5' => '',
         ),
         'evaluation_text' => __('Você concorda com esta proposta?', 'consulta'),
-        'evaluation_response' => __('Agradecemos a sua participação! ', 'consulta'),
+    	'evaluation_response' => __('Agradecemos a sua participação! ', 'consulta'),
         'evaluation_type' => 'percentage',
         
-        'pagina_participe' => '',
-        
-        'evaluation_limit'=> false,
-        'evaluation_max_num' => 5,
-        'evaluation_allow_remove' => false,
-        
-        'evaluation_limit_msg' => 'Você não pode avaliar este objeto porque você já atingiu o limite de avaliações para esta consulta.'
+        'pagina_participe' => ''
     );
 
 }
@@ -65,9 +51,6 @@ function get_theme_option($option_name) {
         get_option('theme_options'), 
         get_theme_default_options()
     );
-    if($option_name == 'evaluation_labels' && evaluation_allow_remove_votes()){
-        $option[$option_name] = array('0' => "Não avaliar") + $option[$option_name];
-    }
     return isset($option[$option_name]) ? $option[$option_name] : false;
 }
 
@@ -87,14 +70,14 @@ function theme_options_menu() {
     $menu_title = 'Opções';
     
     /* Top level menu */
-    add_submenu_page('theme_options', $page_title, $menu_title, 'manage_options', 'theme_options', 'theme_options_page_callback_function');
+    add_theme_page('theme_options', $page_title, $menu_title, 'manage_options', 'theme_options_page_callback_function');
     
     add_menu_page($topLevelMenuLabel, $topLevelMenuLabel, 'manage_options', 'theme_options', 'theme_options_page_callback_function');
 }
 
 function theme_options_js() {
-    wp_enqueue_script('jquery-cookie', get_template_directory_uri() . '/js/jquery.cookie.js', array('jquery'));
-    wp_enqueue_script('theme_options_js', get_template_directory_uri() . '/js/theme-options.js', array('jquery', 'jquery-cookie'));
+    wp_enqueue_script('jquery-ui-datepicker');
+    wp_enqueue_script('theme_options_js', get_template_directory_uri() . '/js/theme-options.js', array('jquery'));
 }
 
 function theme_options_css() {
@@ -143,9 +126,6 @@ function theme_options_page_callback_function() {
     #abas-secoes a:hover { text-decoration: none;  }
     
     #exemplo_resultado { padding: 15px; border: 1px solid grey; }
-    
-    #evaluation_max_num_container { padding-left: 25px; }
-    #evaluation_max_num_container input[type=number] { width: 50px; }
     </style>
     
     <div class="wrap span-20">
@@ -175,7 +155,6 @@ function theme_options_page_callback_function() {
                     <?php _e('Quais são os objetos da sua consulta? Itens de um projeto de lei? Metas de um Plano? Utilize esta página para dar o nome adequado aquilo que você está colocando sob consulta. Preencha as opções abaixo substituindo o termo "objeto" pelo nome do objeto da sua consulta.', 'consulta'); ?>
                     </p>
                     <table class="wp-list-table widefat fixed">
-                        
                         <tr>
                             <td><label for="name">Nome do objeto da consulta (plural)</label></td>
                             <td><input type="text" id="name" class="text" name="theme_options[object_labels][name]" value="<?php echo htmlspecialchars($options['object_labels']['name']); ?>"/></td>
@@ -250,23 +229,6 @@ function theme_options_page_callback_function() {
                                 <td><label for="suggested_object_list">Título da listagem de objetos sugeridos</label></td>
                                 <td><input type="text" id="suggested_object_list" class="text" name="theme_options[suggested_labels][list]" value="<?php echo htmlspecialchars($options['suggested_labels']['list']); ?>"/></td>
                             </tr>
-                            <tr>
-                                <td><label for="suggested_core_list">Título da listagem original de objetos</label></td>
-                                <td><input type="text" id="suggested_core_list" class="text" name="theme_options[suggested_labels][core_list]" value="<?php echo htmlspecialchars($options['suggested_labels']['core_list']); ?>"/></td>
-                            </tr>
-                            <tr>
-                                <td><label for="suggested_object_user_list">Título da listagem de objetos sugeridos na página de um usuário</label></td>
-                                <td><input type="text" id="suggested_object_user_list" class="text" name="theme_options[suggested_labels][list_user_page]" value="<?php echo htmlspecialchars($options['suggested_labels']['list_user_page']); ?>"/></td>
-                            </tr>
-                            <tr>
-                                <td><label for="form_title">Rótulo do campo "Título" no formulário de inclusão</label></td>
-                                <td><input type="text" id="form_title" class="text" name="theme_options[suggested_labels][form_title]" value="<?php echo htmlspecialchars($options['suggested_labels']['form_title']); ?>"/></td>
-                            </tr>
-                            <tr>
-                                <td><label for="form_description">Rótulo do campo "Descição" no formulário de inclusão</label></td>
-                                <td><input type="text" id="form_description" class="text" name="theme_options[suggested_labels][form_description]" value="<?php echo htmlspecialchars($options['suggested_labels']['form_description']); ?>"/></td>
-                            </tr>
-                            
                         </table>
                     </div>
                 </div>
@@ -354,14 +316,13 @@ function theme_options_page_callback_function() {
                     <?php _e('Texto introdutório para a página de listagem de objetos', 'consulta'); ?><br/>
                     <textarea name="theme_options[object_list_intro]" id="object_list_intro" ><?php echo $options['object_list_intro']; ?></textarea>
                     <br/><br/>
-                    <label for="list_order_by">Ordenar objetos por</label>
+                    <label for="list_order_by">Ordernar objetos por</label>
                     <select name="theme_options[list_order_by]" id="list_order_by">
                         <option value="creation_date" <?php selected('creation_date', $options['list_order_by']); ?>>Data de criação</option>
                         <option value="title" <?php selected('title', $options['list_order_by']); ?>>Título</option>
-                        <option value="rand" <?php selected('rand', $options['list_order_by']); ?>>Ordenação aleatória</option>
                     </select>
                     <br/><br/>
-                    <label for="list_order">Ordenar objetos em ordem</label>
+                    <label for="list_order">Ordernar objetos em ordem</label>
                     <select name="theme_options[list_order]" id="list_order">
                         <option value="asc" <?php selected('asc', $options['list_order']); ?>>Ascendente</option>
                         <option value="desc" <?php selected('desc', $options['list_order']); ?>>Descendente</option>
@@ -379,28 +340,9 @@ function theme_options_page_callback_function() {
 
                     <input type="checkbox" id="use_evaluation" name="theme_options[use_evaluation]" value="on" <?php checked('on', $options['use_evaluation']); ?> />
                     <label for="use_evaluation"><?php _e('Permitir que os usuários avaliem os objetos', 'consulta'); ?></label>
-                    
 
                     <div id="use_evaluation_labels_container">
                         <br/><br/>
-                        <input type="checkbox" id="evaluation_limit" name="theme_options[evaluation_limit]" value="on" <?php checked('on', $options['evaluation_limit']); ?> />
-                        <label for="evaluation_limit"><?php _e('Limitar número de objetos que os usuários podem avaliar', 'consulta'); ?></label>
-                        <div id="evaluation_max_num_container">
-                            <label for="evaluation_max_num">Número máximo de objetos:</label>
-                            <input type="number" id="evaluation_max_num" name="theme_options[evaluation_max_num]" value="<?php echo $options['evaluation_max_num']; ?>" min="0"/>
-                            <br/>
-                            <label for="evaluation_limit_msg">
-								Texto exibido quando usuário tenta votar mas já atingiu o limite:<br/> 
-							</label>
-                            <input type="text" id="evaluation_limit_msg" name="theme_options[evaluation_limit_msg]" value="<?php echo isset($options['evaluation_limit_msg']) ? $options['evaluation_limit_msg'] : ''; ?>" class="text"/> <br/>
-                            <small>(ex: Você não pode avaliar este objeto porque você já atingiu o limite de avaliações para esta consulta)</small>
-                        </div>
-                        <br/><br/>
-                        <p style="display:none">
-                            <input type="checkbox" id="evaluation_allow_remove" name="theme_options[evaluation_allow_remove]" value="on" <?php checked('on', $options['evaluation_allow_remove']); ?> />
-                            <label for="evaluation_allow_remove"><?php _e('Permitir que os usuários removam suas avaliações', 'consulta'); ?></label>
-                            <br/><br/>
-                        </p>
                         <input type="checkbox" id="evaluation_show_on_list" name="theme_options[evaluation_show_on_list]" value="on" <?php checked('on', $options['evaluation_show_on_list']); ?> />
                         <label for="evaluation_show_on_list"><?php _e('Exibir avaliação na listagem de objetos por título ou por título e taxonomia', 'consulta'); ?></label>
                         <br/><br/>
@@ -480,7 +422,7 @@ function theme_options_page_callback_function() {
                         </tr>
                         <tr>
                             <td><label for="data_encerramento"><?php _e('Data de encerramento da consulta', 'consulta'); ?></label></td>
-                            <td><input type="text" id="data_encerramento" class="text select_date" name="theme_options[data_encerramento]" value="<?php echo htmlspecialchars($options['data_encerramento']); ?>"/></td>
+                            <td><input type="text" id="data_encerramento" class="text" name="theme_options[data_encerramento]" value="<?php echo htmlspecialchars($options['data_encerramento']); ?>"/></td>
                         </tr>
                     </table>
                 </div>

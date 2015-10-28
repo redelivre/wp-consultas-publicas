@@ -34,21 +34,17 @@ jQuery(document).ready(function() {
         jQuery('#use_evaluation_labels_container').hide();
     }
     
+    jQuery('#data_encerramento').datepicker({dateFormat: 'yy-mm-dd'});   
+    
     //abas
     jQuery('#abas-secoes li a').click(function() {
         jQuery('#abas-secoes li').removeClass('active');
         jQuery(this).parent('li').addClass('active');
         jQuery('.aba-container').hide();
         jQuery('#' + jQuery(this).attr('id') + '-container').show();
-        jQuery.cookie('consulta-active-tab', jQuery(this).attr('id'));
     });
     
-    if (jQuery.cookie('consulta-active-tab')) {
-        jQuery('#' + jQuery.cookie('consulta-active-tab')).click();
-        jQuery.removeCookie('consulta-active-tab')
-    } else {
-        jQuery('#abas-secoes li.active a').click();
-    }
+    jQuery('#abas-secoes li.active a').click();
     
     jQuery('.radio_evaluation_type').click(function() {
         var image = 'perce';
@@ -60,20 +56,4 @@ jQuery(document).ready(function() {
         
     });
     jQuery('.radio_evaluation_type:checked').click();
-    
-    
-    var evaluation_limit_checkbox = function(animate){
-        var $div = jQuery('#evaluation_max_num_container');
-        if(jQuery('#evaluation_limit').is(':checked')){
-            animate ? $div.slideDown() : $div.show();
-            jQuery('#evaluation_allow_remove').attr('checked', true);
-        }else{
-            animate ? $div.slideUp() : $div.hide();
-            jQuery('#evaluation_allow_remove').attr('checked', false);
-        }
-    };
-    evaluation_limit_checkbox(false);
-    jQuery('#evaluation_limit').click(evaluation_limit_checkbox);
 });
-
-

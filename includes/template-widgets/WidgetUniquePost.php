@@ -1,5 +1,4 @@
 <?php
-require_once dirname(__FILE__) . '/WidgetTemplate.php';
 /*
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
@@ -10,6 +9,9 @@ require_once dirname(__FILE__) . '/WidgetTemplate.php';
  *
  * @author rafael
  */
+
+include_once ('WidgetTemplate.php');
+
 class WidgetUniquePost extends WidgetTemplate {
 
     public function getPostFromPermalink($config) {
@@ -17,6 +19,7 @@ class WidgetUniquePost extends WidgetTemplate {
         $permalink = $config['permalink'];
 
         $post = null;
+        $matches = array();
         preg_match('/.*\/(?<post_name>[^\/]+)/', $permalink, $matches);
         if (isset($matches['post_name'])) {
             $post_name = $matches['post_name'];

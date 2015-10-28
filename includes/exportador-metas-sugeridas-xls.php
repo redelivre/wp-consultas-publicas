@@ -14,12 +14,12 @@ $fim = $_POST['data_final'];
 global $wpdb;
 
 if ($inicio && $fim) {
-    $q = $wpdb->prepare("SELECT * FROM $wpdb->comments WHERE comment_date >= %s AND comment_date <= %s  ORDER BY comment_date", $inicio, $fim);
+    $q = $wpdb->prepare("SELECT * FROM $wpdb->posts WHERE post_type = 'meta-sugerida' AND post_date >= %s AND post_date <= %s  ORDER BY post_date", $inicio, $fim);
 } else {
-    $q = $wpdb->prepare("SELECT * FROM $wpdb->comments ORDER BY comment_date");
+    $q = $wpdb->prepare("SELECT * FROM $wpdb->posts WHERE post_type = 'meta-sugerida' ORDER BY post_date");
 }
 
-$comments = $wpdb->get_results($q);
+$metas = $wpdb->get_results($q);
 
 
 header('Pragma: public');
@@ -29,7 +29,7 @@ header("Expires: 0");
 header('Content-Transfer-Encoding: none');
 header('Content-Type: application/vnd.ms-excel; charset=UTF-8'); // This should work for IE & Opera
 header("Content-type: application/x-msexcel; charset=UTF-8"); // This should work for the rest
-header('Content-Disposition: attachment; filename=comentarios-consulta.xls');
+header('Content-Disposition: attachment; filename=metas-sugeridas-consulta.xls');
 
 ?>
 
@@ -38,21 +38,18 @@ header('Content-Disposition: attachment; filename=comentarios-consulta.xls');
 <table>
 
     <tr>
-        <td colspan="6">Dados do comentário</td>
-        <td colspan="2">Conteúdo relacionado</td>
-        <td colspan="11">Dados do autor do comentário</td>
+        <td colspan="4">Dados da meta</td>
+        <td >Tema</td>
+        <td colspan="11">Dados do autor da meta</td>
         
     </tr>
     <tr>
         <td>ID</td>
         <td>Data</td>
-        <td>Comentario</td>
-        <td>Resposta a</td>
-        <td>Sugestão de alteração?</td>
-        <td>Aprovado?</td>
+        <td>Meta</td>
+        <td>Ementa</td>
         
-        <td>Tipo</td>
-        <td>Título</td>
+        <td></td>
         
         <td>ID</td>
         <td>Nome</td>
@@ -69,27 +66,33 @@ header('Content-Disposition: attachment; filename=comentarios-consulta.xls');
 
 
 
-<?php foreach ($comments as $c) : ?>
+<?php foreach ($metas as $c) : ?>
 
     <?php ob_start(); ?>
     
     <tr>
     
-        <td><?php echo $c->comment_ID; ?></td>
-        <td><?php echo date('d/m/Y', strtotime($c->comment_date)); ?></td>
-        <td><?php echo $c->comment_content; ?></td>
-        <td><?php echo $c->comment_parent; ?></td>
-        <td><?php echo get_comment_meta($c->comment_ID, 'sugestao_alteracao', true) ? 'Sim' : 'Não'; ?></td>
-        <td><?php echo $c->comment_approved; ?></td>
+        <td><?php echo $c->ID; ?></td>
+        <td><?php echo date('d/m/Y', strtotime($c->post_date)); ?></td>
+        <td><?php echo $c->post_title; ?></td>
+        <td><?php echo $c->post_content; ?></td>
         
-        <?php $post = $wpdb->get_row("SELECT post_title, post_type FROM $wpdb->posts WHERE ID = $c->comment_post_ID"); ?>
+        <?php
+        $the_terms =  get_the_terms($c->ID, 'tema');
+        ?>
         
-        <td><?php echo $post->post_type; ?></td>
-        <td><?php echo $post->post_title; ?></td>
+        <td><?php
+            if (is_array($the_terms)) {
+	            foreach ($the_terms as $the_term) {
+	                echo $the_term->name;
+	            }
+            }
+            ?>
+        </td>
         
-        <?php $author = get_userdata($c->user_id); ?>
+        <?php $author = get_userdata($c->post_author); ?>
         
-        <td><?php echo $c->user_id; ?></td>
+        <td><?php echo $c->post_author; ?></td>
         <td><?php echo $author->display_name; ?></td>
         <td><?php echo $author->user_email; ?></td>
         <td><?php echo $author->estado; ?></td>

@@ -30,14 +30,15 @@ get_header();
             $suggested_objects = new WP_Query(
                 array('posts_per_page' => -1, 'post_type' => 'object', 'meta_key' => '_user_created', 'meta_value' => true, 'object_type' => $type->slug)
             );
-            ?>
             
-            <header>
-                <h1><a href="<?php echo get_term_link($type->slug, 'object_type'); ?>"><?php echo $type->name; ?></a></h1>
-                <?php if (get_theme_option('allow_suggested') && isset($suggestedLabels['core_list']) && $suggestedLabels['core_list'] != ''): ?>
-                    <h4><?php echo $suggestedLabels['core_list']; ?></h4>
-                <?php endif; ?>
-            </header>
+            $termDescription = term_description( $type->term_id, 'object_type' );
+    
+            if ($termDescription != '') : ?>
+                <header>
+                    <h1><a href="<?php echo get_term_link($type->slug, 'object_type'); ?>"><?php echo $type->name; ?></a></h1>
+                </header>
+            <?php endif; ?>
+            
             <ul>
                 <?php 
                 if ($objects->have_posts()) {

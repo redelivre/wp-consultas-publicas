@@ -23,6 +23,7 @@
         echo ' | ' . sprintf( __( 'Page %s', 'twentyten' ), max( $paged, $page ) );
 
     ?></title>
+<?php wp_head(); ?>
 <link rel="profile" href="http://gmpg.org/xfn/11" />
 <link rel="stylesheet" type="text/css" media="all" href="<?php bloginfo( 'stylesheet_url' ); ?>" />
 
@@ -35,16 +36,15 @@
 
 <link rel="pingback" href="<?php bloginfo( 'pingback_url' ); ?>" />
 
-<?php wp_head(); ?>
+
 
 </head>
 
 <body <?php body_class(); ?>>
-    <?php do_action('consulta_body_top'); ?>
-    
     <div id="overlay"></div>
         <div class="container">
             <header id="main-header" class="clearfix">
+                <?php do_action('campanha_body_header'); ?>
                 <div class="span-17 clearfix">
                     <div id="login">
                         <?php if (is_user_logged_in()): ?>
@@ -91,7 +91,6 @@
                 <form id="busca" class="span-6" role="search" method="get" action="<?php echo home_url( '/' ); ?>">
                     <input id="s" type="search" value="buscar" name="s" onfocus="if (this.value == 'buscar') this.value = '';" onblur="if (this.value == '') {this.value = 'buscar';}" />        
                 </form>
-                <a id="feed-link" class="span-1 last" href="<?php bloginfo('rss_url'); ?>" title="RSS Feed">rss</a>
                 
                 <div id="branding" class="clear">
                     <?php if ( 'blank' == get_header_textcolor() ) : ?>
@@ -102,7 +101,9 @@
                     <?php endif; ?>    
                 </div>
                 <nav id="main-nav" class="span-22 prepend-2 last clearfix">
-                    <?php wp_nav_menu( array( 'theme_location' => 'principal', 'container' => '', 'menu_id' => 'main-menu', 'menu_class' => 'clearfix', 'fallback_cb' => 'consulta_default_menu') ); ?>    
+                    
+                    
+                    <?php wp_nav_menu( array( 'menu' => 'main', 'theme_location' => 'main', 'container' => '', 'menu_id' => 'main-menu', 'menu_class' => 'clearfix', 'fallback_cb' => 'consulta_default_menu', 'depth' => '3',) ); ?>
                 </nav>
             </header>
             <!-- #main-header -->

@@ -1,6 +1,6 @@
 <?php 
 
-if (!get_theme_option('allow_suggested') || !is_user_logged_in() || is_consulta_encerrada()) {
+if (!get_theme_option('allow_suggested') || !is_user_logged_in()) {
     wp_redirect(home_url('404'), 302 );
     exit();
 }
@@ -63,11 +63,11 @@ get_header();
 <form id="new_object" method="post">
     <?php wp_nonce_field('consulta_create_new_object', 'create_new_object'); ?>
     <div class="clearfix">
-        <label for="title"><?php echo isset($labels['form_title']) ? $labels['form_title'] : 'Título'; ?></label>
+        <label for="title"><?php _e('Título', 'consulta'); ?></label>
         <input type="text" id="title" value="<?php echo isset($_POST['title']) ? $_POST['title'] : ''; ?>" name="title">
     </div>
     <div class="clearfix">
-        <label for="description"><?php echo isset($labels['form_description']) ? $labels['form_description'] : 'Descrição'; ?></label>
+        <label for="description"><?php _e('Descrição', 'consulta'); ?></label>
         <textarea name="description" id="description"><?php echo isset($_POST['description']) ? $_POST['description'] : ''; ?></textarea>
     </div>
     

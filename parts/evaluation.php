@@ -4,8 +4,6 @@
     $userVote = str_replace('_label_', 'label_', get_user_vote($postId));
     $votes = get_votes($postId);
     $evaluation_type = get_theme_option('evaluation_type');
-    $in_list = isset($in_list) ? $in_list : false;
-    
     ?>
 
     <div class="evaluation clearfix">
@@ -21,50 +19,74 @@
                 
                 <div id="evaluation_bars" class="clear">
                     <h5><?php _e('Resultado até o momento', 'consulta'); ?></h5>
-                    <?php evaluation_build_bars_graph($postId); ?>
+                    <?php
+                    $ii = 0;
+                    foreach ($evaluationOptions as $key => $value) :
+                        if (empty($value)) {
+                            break;
+                        }
+                        ?>
+    
+                        <div class="clear">
+                            
+                            <label><?php echo $value; ?>: <?php echo $votes[$ii]; ?> (<?php echo $perceVotes[$ii]; ?>%)</label>
+                            <div id="evaluation_bar_bg" >
+                                <div class="evaluation_bar" style="width: <?php echo $perceVotes[$ii]; ?>%;"></div>
+                            </div>
+                        </div>
+                
+                        <?php $ii ++;
+                    endforeach; ?>
                 </div>
             <?php elseif($evaluation_type == 'average'): ?>
+                <?php $widthItem = consulta_get_width_item(); ?>
+                <?php $numAlternatives = consulta_get_number_alternatives(); ?>
                 <?php $average = consulta_get_votes_average($votes); ?>
+                <?php $averageWidth =  ($average  * 100) / $numAlternatives; ?>
                 
                 <div id="evaluation_scale" class="clear">
                     <h5>Média de <?php echo array_sum($votes); ?> votos: <?php echo $average; ?></h5>
-                    <?php evaluation_build_scale_graph($postId); ?>
+                    
+                    <div id="evaluation_bar_bg" >
+                        <div class="evaluation_bar" style="width: <?php echo $averageWidth; ?>%;"></div>
+                    </div>
+                    
+                    <?php
+                    $ii = 1;
+                    foreach ($evaluationOptions as $key => $value) :
+                        if (empty($value)) {
+                            break;
+                        }
+                        ?>
+                        
+                        <div class="evaluation_average_label" style="width: <?php echo $widthItem; ?>%;">
+                            <div class="evaluation_average_marker"></div>
+                            <p><?php echo $ii, '. ', $value; ?></p>
+                        </div>
+                        <?php $ii++;
+                    endforeach; ?>
+                    
+                    <div class="clear"></div>
                 </div>
             <?php endif; ?>
         <?php endif; ?>
     
         <?php if (is_user_logged_in()): ?>
-            <?php $can_vote = current_user_can_vote() || $userVote; ?>
-            
-            <div class="user_evaluation">
+            <div id="user_evaluation">            
                 <h5><?php _e('Minha avaliação', 'consulta'); ?></h5>
-                    
+                
                 <form id="object_evaluation">
-
-                    <input type="hidden" name="post_id" value="" />
-
+                    <input type="hidden" id="post_id" name="post_id" value="<?php the_ID(); ?>" />    	
                     <?php foreach ($evaluationOptions as $key => $value) : ?>
                         <?php if (empty($value)) break; ?>
-
-                        <div class="list_object <?php if( ! $key ) echo 'nao-avaliar'; ?>">
-                            <label> 
-                                <input type="radio" value="<?php echo $key; ?>" data-post_id="<?php the_ID(); ?>" data-in_list="<?php echo $in_list ? "1" : "" ?>" name="object_evaluation" <?php checked($userVote == $key); ?> <?php if(!$can_vote && !$in_list) echo 'disabled="disabled"' ?> />
-                                <?php echo $value; ?>
-                            </label>
-                            <div class="object_evaluation_feedback" style="display: none;"><img style="float: left; margin-left: 5px;" src="<?php bloginfo('stylesheet_directory'); ?>/img/accept.png" alt="" /></div>
-                        </div>
+                        <input type="radio" id="<?php echo $key; ?>" name="object_evaluation" <?php checked($userVote === $key); ?> />
+                        <label for="<?php echo $key; ?>"><?php echo $value; ?></label>
+                        <br />
                     <?php endforeach; ?>
-
-                    <div class="object_evaluation_response_feedback" style="display: none;"><p style="padding: 10px; border: 1px solid #006633;"><?php echo get_theme_option('evaluation_response'); ?></p></div>
                 </form>
-                
-                <?php if(!$can_vote) :?>
-                    <em><?php echo get_theme_option('evaluation_limit_msg'); ?></em>
-                <?php endif; ?>
             </div>
-            
         <?php else: ?>
-            <p><?php _e('Para avaliar é necessário estar cadastrado e ter efetuado login.', 'consulta'); ?></p>
+            <p><?php _e('Para avaliar é necessário se <a href="' . wp_login_url() . '?action=register">cadastrar</a> e efetuar o <a href="' . wp_login_url() . '">login</a>.', 'consulta'); ?></p>
         <?php endif; ?>
     </div>
 <?php endif; ?>

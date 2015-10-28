@@ -5,9 +5,7 @@ include dirname(__FILE__).'/includes/html.class.php';
 include dirname(__FILE__).'/includes/utils.class.php';
 
 include dirname(__FILE__).'/includes/exportador-comentarios.php';
-include dirname(__FILE__).'/includes/exportador-objetos-sugeridos.php';
-include dirname(__FILE__).'/includes/exportador-avaliacoes.php';
-include dirname(__FILE__).'/includes/relatorio.php';
+include dirname(__FILE__).'/includes/exportador-metas-sugeridas.php';
 
 add_action( 'after_setup_theme', 'consulta_setup' );
 function consulta_setup() {
@@ -71,26 +69,14 @@ remove_action('wp_footer','wp_admin_bar_render',1000);
 function remove_admin_bar(){
    return false;
 }
-add_filter( 'show_admin_bar' , 'remove_admin_bar');
 
-add_action('admin_enqueue_scripts', function() {
-    wp_enqueue_script('jquery-ui-datepicker');
-    wp_enqueue_style('jquery-ui-custom', get_template_directory_uri() . '/css/ui-lightness/jquery-ui-1.9.1.custom.min.css');
-    wp_enqueue_script('consulta-datepicker', get_template_directory_uri() . '/js/consulta-datepicker.js', array('consulta'));
-    
-    if (get_current_screen()->id == 'opcoes-da-consulta_page_export_comments'
-        || get_current_screen()->id == 'opcoes-da-consulta_page_exportador_objetos_sugeridos')
-    {
-        wp_enqueue_script('consulta-exportador', get_template_directory_uri() . '/js/consulta-exportador.js', array('jquery'));
-    }
-});
+add_filter( 'show_admin_bar' , 'remove_admin_bar');
 
 // JS
 function consulta_addJS() {
-    global $wp_query;
-    
     wp_enqueue_script('scrollto', get_template_directory_uri() . '/js/jquery.scrollTo-1.4.2-min.js',array('jquery'));
-    wp_enqueue_script('consulta', get_template_directory_uri() . '/js/consulta.js',array('jquery', 'scrollto'));
+    wp_enqueue_script('jquery-cookie', get_template_directory_uri() . '/js/jquery.cookie.js',array('jquery'));
+    wp_enqueue_script('consulta', get_template_directory_uri() . '/js/consulta.js',array('jquery', 'scrollto', 'jquery-cookie'));
     wp_localize_script('consulta', 'consulta', array( 'ajaxurl' => admin_url('admin-ajax.php') ));
     wp_enqueue_script('hl', get_template_directory_uri() . '/js/hl.js', array('consulta'));
     
@@ -98,20 +84,11 @@ function consulta_addJS() {
         wp_enqueue_script('evaluation', get_template_directory_uri() . '/js/evaluation.js', array('jquery'));
     }
     
-    if (is_singular()) {
-        wp_enqueue_script( 'comment-reply' );
-    }
-    
-    wp_enqueue_style('evaluation', get_template_directory_uri() . '/css/evaluation.css');
-    
-    if ($wp_query->get('tpl') == 'novo') {
-        wp_enqueue_script('consulta-object-new', get_stylesheet_directory_uri() . '/js/consulta-object-new.js', array('jquery'));
-    }
+    if (is_singular()) wp_enqueue_script( 'comment-reply' );
 }
 add_action('wp_print_scripts', 'consulta_addJS');
 
 // paginas customizadas
-
 add_filter('query_vars', 'consulta_custom_query_vars');
 add_filter('rewrite_rules_array', 'consulta_custom_url_rewrites');
 add_action('template_redirect', 'consulta_template_redirect_intercept');
@@ -183,6 +160,8 @@ if (!function_exists('consulta_comment')):
 function consulta_comment($comment, $args, $depth) {
     $GLOBALS['comment'] = $comment;
     
+    $sugestao = get_comment_meta($comment->comment_ID, 'sugestao_alteracao', true);
+    
     $autor = get_userdata($comment->user_id);
     global $wpdb;
     $level_var = $wpdb->prefix . 'user_level';
@@ -192,26 +171,32 @@ function consulta_comment($comment, $args, $depth) {
     }
     
     $commentClass = 'clearfix';
-    
-    if (isset($moderador)) {
+    if ($sugestao) {
+        $commentClass = 'clearfix delegado';
+    } elseif (isset($moderador)) {
         $commentClass = 'clearfix conselheiro';
     }
     
     ?>
     <li <?php comment_class($commentClass); ?> id="comment-<?php comment_ID(); ?>"  > 
+		
+        
 		<div class="content clearfix">
-        <p class="comment-meta bottom">
-          <?php echo get_comment_date() . ' às ' . get_comment_time() ; ?>                  
+		<p class="comment-meta">
+           <span class="comment-author"><?php echo is_object($autor) ? $autor->display_name : ''; ?></span> | <?php echo get_comment_date() . ' às ' . get_comment_time() ; ?>
         </p>
+		<?php if ($sugestao): ?>
+			<h6 class="alteracao">
+				<?php _oi('Sugestão de alteração para esta meta', 'Comentários: Texto que aparece acima do comentário quando este é uma sugestão de alteração'); ?>
+			</h6>
+        <?php endif; ?>
         
         <?php //echo get_avatar($comment, 44); ?>
         
 			<?php if($comment->comment_approved == '0') : ?><br/><em><?php _oi('Seu comentário está aguardando moderação', 'Comentários: Texto que aparece para o usuário quando o seu comentário fica em moderação'); ?></em><?php endif; ?>
           <?php comment_text(); ?>          
         
-        <p class="comment-meta">
-            <span class="comment-author"><?php echo is_object($autor) ? $autor->display_name : ''; ?></span>
-        </p> 
+         
         <p class="comment-meta">            
 			<?php comment_reply_link(array('depth' => $depth, 'max_depth' => $args['max_depth'])) ?> <?php edit_comment_link( __('Edit', 'consulta'), '| ', ''); ?>
         </p>
@@ -222,8 +207,16 @@ function consulta_comment($comment, $args, $depth) {
 
 endif; 
 
-////////////////////
 
+function consulta_post_comment ( $post_id ) {
+    $sugestao_alteracao = $_POST['sugestao_alteracao'];
+    if ( $sugestao_alteracao ) 
+        add_comment_meta( $post_id, 'sugestao_alteracao', $sugestao_alteracao, true );
+}
+add_action( 'comment_post', 'consulta_post_comment', 1 );
+
+////////////////////
+/**
 function print_msgs($msg, $extra_class='', $id=''){
     if (!is_array($msg)) {
         return false;
@@ -245,7 +238,7 @@ function print_msgs($msg, $extra_class='', $id=''){
         }
         echo "</ul></div>";
     }
-}
+}*/
 
 
 if (!function_exists('_oi')) {
@@ -283,6 +276,39 @@ function quebra_linha_titulo_meta($title) {
     return str_replace('*', '<br />', $title);
 
 }
+
+
+// loga os acessos
+function access_log_callback(){
+    if(is_singular()){
+        global $post;
+
+        if(is_writable(ABSPATH.'/wp-content/uploads/')){
+            $log_path = ABSPATH.'/wp-content/uploads/access_log/';
+            $total_path = $log_path.'total/';
+            
+            if(!file_exists($log_path)){
+                mkdir($log_path);
+                mkdir($total_path);
+            }
+            
+            $day_path = $log_path.date('Y-m-d').'/';
+            
+            if(!file_exists($day_path))
+                mkdir($day_path);
+            
+            
+            $filename_day = $day_path.$post->ID;
+            
+            $filename_total = $total_path.$post->ID;
+            file_put_contents($filename_day, 1, FILE_APPEND);
+            file_put_contents($filename_total, 1, FILE_APPEND);
+        }
+    }
+}
+
+add_action('wp_head', 'access_log_callback');
+
 
 function is_consulta_encerrada() {
 
@@ -346,29 +372,15 @@ function consulta_customize_register($wp_customize) {
     );
 }
 
-/**
- * Retorna as cores para os títulos e links
- * do site.
- * 
- * @return array na primeira posição a cor dos links e na segunda a cor dos títulos 
- * 
- */
-function consulta_get_theme_colors() {
-    $colors = array();
-    $options = get_option('consulta_theme_options');
-    
-    $colors[] = isset($options['link_color']) ? $options['link_color'] : '#00A0D0';
-    $colors[] = isset($options['title_color']) ? $options['title_color'] : '#006633';
-    
-    return $colors;
-}
 
 /**
  * Add to the header the CSS elements that can
  * be altered dinamically with the theme customizer
  */
 add_action('wp_print_styles', function() {
-    list($linkColor, $titleColor) = consulta_get_theme_colors();
+    $options = get_option('consulta_theme_options');
+    $linkColor = isset($options['link_color']) ? $options['link_color'] : '#00A0D0';
+    $titleColor = isset($options['title_color']) ? $options['title_color'] : '#006633';
     ?>
     <style>
     /* Colors */
@@ -444,90 +456,12 @@ function get_user_vote($postId) {
  */
 function get_votes($postId) {
     $votes = array();
-    $evaluationOptions = get_theme_option('evaluation_labels');
 
     foreach (range(1, 5) as $i) {
-        $label = 'label_' . $i;
-        
-        // somente considera os votos das opções de avaliação que estejam ativas
-        if (!empty($evaluationOptions[$label])) {
-            $votes[] = count(get_post_meta($postId, '_' . $label));
-        } else {
-            $votes[] = 0;
-        }
+        $votes[] = count(get_post_meta($postId, '_label_' . $i));
     }
     
     return $votes;
-}
-
-/**
- * Retorna o id do usuário com o seu voto em um post.
- * Diferente da get_votes() que retorna apenas quantos votos
- * cada opção teve para um post.
- *
- * @param int $postId
- * @return array array cuja a chave é o id do usuário e o valor é o seu voto
- */
-function get_votes_data($postId) {
-    $votes = array();
-    $evaluationOptions = get_theme_option('evaluation_labels');
-
-    foreach (range(1, 5) as $i) {
-        $label = 'label_' . $i;
-        $optionVotes = get_post_meta($postId, '_' . $label);
-        
-        if (!empty($optionVotes)) {
-            foreach($optionVotes as $userId) {
-                if (!empty($evaluationOptions[$label])) {
-                    // somente considera os votos das opções de avaliação que estejam ativas
-                    $votes[$userId] = '_' . $label;
-                }
-            }
-        }
-    }
-
-    return $votes;
-}
-
-/**
- * Retorna todos os votos para
- * todos os objetos
- * 
- * @return array
- */
-function get_all_votes() {
-    $votes = array();
-    $objects = get_posts(array('post_type' => 'object', 'posts_per_page' => -1));
-    
-    foreach ($objects as $object) {
-        $objectVotes = get_votes_data($object->ID);
-        
-        if (!empty($objectVotes)) {
-            foreach ($objectVotes as $user_id => $vote) {
-                $votes[] = array('post_id' => $object->ID, 'user_id' => $user_id, 'vote' => $vote);
-            }
-        }
-    }
-    
-    return $votes;
-}
-
-/**
- * Retorna o label do voto de um usuário.
- * 
- * @param string $vote_id
- * @return string
- */
-function get_vote_label($vote_id) {
-    $evaluationLabels = get_theme_option('evaluation_labels');
-    // remove o underscore que é usado para guardar o postmeta mas não é usado na opção evaluation_labels
-    $vote_id = substr($vote_id, 1);
-    
-    if (isset($evaluationLabels[$vote_id])) {
-        return $evaluationLabels[$vote_id];
-    } else {
-        throw new Exception("Label de voto '{$vote_id}' inválido.");
-    }
 }
 
 /**
@@ -539,179 +473,35 @@ function get_vote_label($vote_id) {
  */
 function count_votes($postId) {
     $votes = 0;
-    $evaluationOptions = get_theme_option('evaluation_labels');
 
     foreach (range(1, 5) as $i) {
-        $label = 'label_' . $i;
-        
-        // somente considera os votos das opções de avaliação que estejam ativas
-        if (!empty($evaluationOptions[$label])) {
-            $votes += count(get_post_meta($postId, '_' . $label));
-        }
+        $votes += count(get_post_meta($postId, '_label_' . $i));
     }
     
     return $votes;
 }
 
 /**
- * Verifica se usuário atual ainda pode votar: havendo limite, o número de votos deste usuário deve ser menor do que este limite
- * @global type $wpdb
- * @return boolean
- */
-function current_user_can_vote(){
-    $options = wp_parse_args( 
-        get_option('theme_options'), 
-        get_theme_default_options()
-    );
-    
-    if(!$options['evaluation_limit'])
-        return true;
-    
-    global $wpdb;
-    
-    $user_id = get_current_user_id();
-    
-    $num = intval($wpdb->get_var("SELECT COUNT(meta_id) FROM $wpdb->postmeta WHERE meta_key IN ( '_label_1' , '_label_2' , '_label_3' , '_label_4' , '_label_5' ) AND meta_value = '$user_id'"));
-    
-    return intval($options['evaluation_max_num']) > $num;
-}
-
-function evaluation_allow_remove_votes(){
-    $options = wp_parse_args( 
-        get_option('theme_options'), 
-        get_theme_default_options()
-    );
-    
-    return $options['evaluation_allow_remove'];
-}
-
-/**
- * Joga na tela o gráfico de barras das avaliações feitas pelos
- * usuários em um objeto da consulta.
- * 
- * @param int $postId o id do objeto avaliado
- */
-function evaluation_build_bars_graph($postId) {
-    $evaluationOptions = get_theme_option('evaluation_labels');
-    $votes = get_votes($postId);
-    $perceVotes = consulta_get_votes_percentage($votes);
-    $i = 0;
-    
-    foreach ($evaluationOptions as $key => $value) {
-        // se a opção for Não Avaliar (valor da chave é zero)
-        if (!$key) {
-            continue;
-        }
-        
-        if (empty($value)) {
-            break;
-        }
-        ?>
-
-        <div class="clear">
-            <label><?php echo $value; ?>: <?php echo $votes[$i]; ?> (<?php echo $perceVotes[$i]; ?>%)</label>
-            <div id="evaluation_bar_bg" >
-                <div class="evaluation_bar" style="width: <?php echo $perceVotes[$i]; ?>%;"></div>
-            </div>
-        </div>
-
-        <?php $i++;
-    }
-}
-
-/**
- * Joga na tela o gráfico de com a média das avaliações feitas
- * pelos usuários em um objeto da consulta.
- * 
- * @param int $postId o id do objeto avaliado
- */
-function evaluation_build_scale_graph($postId) {
-    $evaluationOptions = get_theme_option('evaluation_labels');
-    $votes = get_votes($postId);
-    $widthItem = consulta_get_width_item();
-    $numAlternatives = consulta_get_number_alternatives();
-    $average = consulta_get_votes_average($votes);
-    $averageWidth =  ($average  * 100) / $numAlternatives;
-    
-    ?>
-    <div id="evaluation_bar_bg" >
-        <div class="evaluation_bar" style="width: <?php echo $averageWidth; ?>%;"></div>
-    </div>
-    
-    <?php
-    $i = 1;
-    
-    foreach ($evaluationOptions as $key => $value) :
-        // se a opção for Não Avaliar (valor da chave é zero)
-        if (!$key) {
-            continue;
-        }
-        
-        if (empty($value)) {
-            break;
-        }
-        ?>
-        
-        <div class="evaluation_average_label" style="width: <?php echo $widthItem; ?>%;">
-            <div class="evaluation_average_marker"></div>
-            <p><?php echo $i, '. ', $value; ?></p>
-        </div>
-        <?php $i++;
-    endforeach; ?>
-    
-    <div class="clear"></div>
-    
-    <?php
-}
-
-/**
- * Retorna o número de opções disponíveis para a avaliação
- * dos objetos da consulta.
- * 
- * @return int
- */
-function evaluation_count_options() {
-    $evaluationOptions = get_theme_option('evaluation_labels');
-    $count = 0;
-    
-    foreach($evaluationOptions as $key => $option) {
-        if (!empty($option) && $key !== 0) {
-            $count++;
-        }
-    }
-    
-    return $count;
-}
-
-/**
  * Compute user vote for object evaluation
  */
 add_action('wp_ajax_object_evaluation', function() {
-    global $post;
-    
-    $data = array('voted'=>true);
+    $data = array();
     $userVote = filter_input(INPUT_POST, 'userVote', FILTER_SANITIZE_STRING);
     $postId = filter_input(INPUT_POST, 'postId', FILTER_SANITIZE_NUMBER_INT);
-
+    
+    // delete old vote if user already voted
     if ($userOldVote = get_user_vote($postId)) {
-        // se já votou, altera o voto deletando o antigo e inserindo novo se o voto for diferente de zero
-        delete_post_meta($postId, $userOldVote, get_current_user_id());
-        
-        if ($userVote) {
-            add_post_meta($postId, '_' . $userVote, get_current_user_id());
-        }
-    } elseif ($userVote && current_user_can_vote()) {
-        // caso não tenha votado, só deixa votar se não atingiu o limite
-        add_post_meta($postId, '_' . $userVote, get_current_user_id());
-    } else {
-        $data['voted'] = false;
+        delete_post_meta($postId, $userOldVote);
     }
-
+    
+    update_post_meta($postId, '_' . $userVote, get_current_user_id());
+    
+    global $post;
+    
     $post = get_post($postId);
     
     ob_start();
-    isset($_POST['in_list']) ? html::part('evaluation', array('in_list' => $_POST['in_list'])) : html::part('evaluation');
-    
+    html::part('evaluation');
     $data['html'] = ob_get_clean();
     $data['count'] = count_votes($postId);
     
@@ -734,15 +524,14 @@ function consulta_default_menu() {
 }
 
 function consulta_get_votes_percentage($votes) {
-    if (!is_array($votes) || sizeof($votes) < 5) {
+
+    if (!is_array($votes) || sizeof($votes) < 5)
         return -1;
-    }
         
     $sum = array_sum($votes); 
     
-    if ($sum < 1) {
+    if ($sum < 1)
         return array(0,0,0,0,0);
-    }
            
     $return = array();
     
@@ -751,12 +540,13 @@ function consulta_get_votes_percentage($votes) {
     }
     
     return $return;
+
 }
 
 function consulta_get_votes_average($votes) {
-    if (!is_array($votes) || sizeof($votes) < 5) {
+
+    if (!is_array($votes) || sizeof($votes) < 5)
         return -1;
-    }
         
     $sum = array_sum($votes); 
     $value = 0;
@@ -771,26 +561,37 @@ function consulta_get_votes_average($votes) {
     $value += $votes[4] * 5;
     
     return number_format($value / $sum, 1);
+    
+
 }
 
 function consulta_get_width_item() {
-    return 100 / consulta_get_number_alternatives();
+
+    $evaluationOptions = get_theme_option('evaluation_labels');
+    
+    $i = 0;
+    foreach ($evaluationOptions as $key => $value) {
+        if (empty($value)) break;
+        $i++;
+    }
+    
+    return 100 / $i;
+    
+
 }
 
 function consulta_get_number_alternatives() {
+
     $evaluationOptions = get_theme_option('evaluation_labels');
-    $i = 0;
     
+    $i = 0;
     foreach ($evaluationOptions as $key => $value) {
-        // se a opção for Não Avaliar (valor da chave é zero)
-        if( ! $key )
-            continue;
-        
         if (empty($value)) break;
         $i++;
     }
     
     return $i;
+
 }
 
 /*
@@ -821,11 +622,6 @@ function consulta_pre_get_posts($query) {
         $query->set('order', get_theme_option('list_order'));
         $query->set('orderby', get_theme_option('list_order_by'));
     }
-    
-    // exibe na pagina do autor os objetos que ele sugeriu
-    if ($query->is_author && get_theme_option('allow_suggested')) {
-        $query->set('post_type', 'object');
-    }
 }
 add_action('pre_get_posts', 'consulta_pre_get_posts', 1);
 
@@ -847,12 +643,73 @@ function consulta_show_user_link() {
     <?php
 }
 
-// exibe aviso para o admin caso os permalinks estejam desabilitados
-add_action('admin_notices', function() {
-    if (!get_option('permalink_structure') && current_user_can('manage_options')) {
-        echo '<div id="message" class="error"><p><strong>O módulo de Consultas Públicas depende da estrutura de permalinks habilitada para funcionar corretamente. Por favor altere esta configuração na página <a href="' . admin_url('options-permalink.php') . '">Links permanentes</a>. Você pode escolher qualquer uma das opções, exceto a primeira chamada "Padrão".</strong><p></div>';
+/**
+* Ajustes para implementar no campanha
+*/
+$custom_header_config = array(
+	'width'                  => 960,
+	'height'                 => 198,
+	'flex-height' 			 => true, 
+	'flex-widht' 			 => true
+);
+
+add_theme_support('custom-header');
+if ( ! isset( $content_width ) ) $content_width = 900;
+
+add_filter('the_content', 'propostas_inline');
+function propostas_inline($content)
+{
+    global $post;
+    
+    $resultado = array();
+    
+    preg_match_all("/\[propostas\](.*)\[\/propostas\]/s", $content, $resultado, PREG_PATTERN_ORDER);
+ 
+    $propostas_parsed = '<div class="lista-propostas">' . $resultado[1][0] . '</div>';
+
+    $resultado_itens = array();
+    preg_match_all("/(?:^|\s)\#(\w+)\b/s", $propostas_parsed, $resultado_itens);
+    
+    foreach($resultado_itens[0] as $chave => $item_proposta) {
+        
+        $item_proposta = trim($item_proposta);
+        $item_proposta_clear = trim($resultado_itens[1][$chave]);
+        
+        $meta_concordo =  get_post_meta($post->ID, $item_proposta.'-concordo');
+        $numero_concordam = intval($meta_concordo[0]);
+        
+        $meta_naoconcordo = get_post_meta($post->ID, $item_proposta.'-naoconcordo');
+        $numero_naoconcordam = intval($meta_naoconcordo[0]);
+        
+        $propostas_parsed = str_replace($item_proposta, 
+            "<p class='opcoes-proposta'><a data-post='".$post->ID."' href='".$item_proposta."' class='proposta-concordo'>concordo</a>(<span id='".$item_proposta_clear."-proposta-concordo'>$numero_concordam</span>) " .
+            "<a data-post='".$post->ID."' href='".$item_proposta."' class='proposta-naoconcordo'>não concordo</a>(<span id='".$item_proposta_clear ."-proposta-naoconcordo'>$numero_naoconcordam</span>)</p>", $propostas_parsed);
     }
-});
+    
+    $content = preg_replace ("/\[propostas\](.*)\[\/propostas\]/s", $propostas_parsed, $content);    
+
+    return $content; 
+}
+
+if ($_REQUEST['proposta_inline'] == 'true') {
+    
+    switch ($_REQUEST['tipo_proposta_inline']) {
+        case "proposta-concordo":
+            $meta = get_post_meta($_REQUEST['post_id'], $_REQUEST['item_proposta'].'-concordo');
+            $numero_concordam = intval($meta[0]);
+            update_post_meta($_REQUEST['post_id'], $_REQUEST['item_proposta']."-concordo", ++$numero_concordam);
+            echo $numero_concordam;
+            break;
+        case "proposta-naoconcordo":
+            $meta = get_post_meta($_REQUEST['post_id'], $_REQUEST['item_proposta'].'-naoconcordo');
+            $numero_naoconcordam = intval($meta[0]);
+            update_post_meta($_REQUEST['post_id'], $_REQUEST['item_proposta']."-naoconcordo", ++$numero_naoconcordam);
+            echo $numero_naoconcordam;
+            break;
+    }
+    
+    die();
+}
 
 /**
  * hook para apagar registros de votos caso o item seja movido para o lixo
@@ -861,10 +718,10 @@ add_action('admin_notices', function() {
  */
 add_action( 'delete_post', 'consulta_trash_votes');
 function consulta_trash_votes($pid) {
-    global $wpdb;
-    $table = ($wpdb->postmeta) ? $wpdb->postmeta : '';
-    if ($wpdb->get_var($wpdb->prepare( "SELECT COUNT(meta_id) FROM $table WHERE meta_key IN ( '_label_1' , '_label_2' , '_label_3' , '_label_4' , '_label_5' ) AND post_id = %d", $pid))) {
-      return $wpdb->query( $wpdb->prepare( "DELETE FROM $table WHERE meta_key IN ( '_label_1' , '_label_2' , '_label_3' , '_label_4' , '_label_5' ) AND post_id = %d", $pid));
-    }
-    return true;
+	global $wpdb;
+	$table = ($wpdb->postmeta) ? $wpdb->postmeta : '';
+	if ($wpdb->get_var($wpdb->prepare( "SELECT COUNT(meta_id) FROM $table WHERE meta_key IN ( '_label_1' , '_label_2' , '_label_3' , '_label_4' , '_label_5' ) AND post_id = %d", $pid))) {
+		return $wpdb->query( $wpdb->prepare( "DELETE FROM $table WHERE meta_key IN ( '_label_1' , '_label_2' , '_label_3' , '_label_4' , '_label_5' ) AND post_id = %d", $pid));
+	}
+	return true;
 }

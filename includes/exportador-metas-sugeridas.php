@@ -1,22 +1,22 @@
 <?php
 
-add_action('admin_menu', 'exportador_comentarios_menu');
+add_action('admin_menu', 'exportador_metas_sugeridas_menu');
 
-function exportador_comentarios_menu() {
+function exportador_metas_sugeridas_menu() {
  
-    add_comments_page('Exportar', 'Exportar', 'manage_options', 'exportador_comentarios', 'exportador_comentarios_page_callback_function');
+    add_submenu_page('edit.php?post_type=meta-sugerida', 'Exportar', 'Exportar', 'manage_options', 'exportador_metas_sugeridas', 'exportador_metas_sugeridas_page_callback_function');
     
    
 }
 
 
-function exportador_comentarios_page_callback_function() {
+function exportador_metas_sugeridas_page_callback_function() {
     
 ?>
   <div class="wrap span-20">
     <h2><?php echo __('Exportar Comentários', 'consulta'); ?></h2>
 
-    <form method="post" action="<?php echo get_template_directory_uri(); ?>/includes/exportador-comentarios-xls.php" class="clear prepend-top">
+    <form method="post" action="<?php echo get_template_directory_uri(); ?>/includes/exportador-metas-sugeridas-xls.php" class="clear prepend-top">
       
       <div class="span-20 ">
       
